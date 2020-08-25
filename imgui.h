@@ -1659,17 +1659,17 @@ struct ImGuiStyle
 struct ImPointerEvent
 {
     // Members (Properties)
-    ImGuiPointerType PointerType;       // The type of device this event is received from
-    ImU32 PointerId;                    // The unique ID for the physical pointer
-    ImU32 FrameId;                      // The unique ID for this specific event
-    ImGuiPointerFlags PointerFlags;     // Indicating the state of this pointer event and other properties
-    ImVec2 PixelLocation;               // Current location of this pointer event
-    ImVec4 ExtraAxis;                   // Extra axis associated with this event (like HV mouse wheel delta)
+    ImGuiPointerType    PointerType;    // The type of device this event is received from
+    ImU32               PointerId;      // The unique ID for the physical pointer
+    ImU32               FrameId;        // The unique ID for this specific event
+    ImGuiPointerFlags   PointerFlags;   // Indicating the state of this pointer event and other properties
+    ImVec2              PixelLocation;  // Current location of this pointer event
+    ImVec4              ExtraAxis;      // Extra axis associated with this event (like HV mouse wheel delta)
 
     // Members (Buttons/Modifiers)
-    ImGuiButtonFlags PointerButtons;    // Currently pressed buttons of the pointer device 
-    ImGuiPointerBtnCh ButtonChanged;    // Enum representing a change in pointer buttons
-    ImGuiKeyModFlags ModifierKeys;      // Modifier keys being pressed during this event
+    ImGuiButtonFlags    PointerButtons; // Currently pressed buttons of the pointer device 
+    ImGuiPointerBtnCh   ButtonChanged;  // Enum representing a change in pointer buttons
+    ImGuiKeyModFlags    ModifierKeys;   // Modifier keys being pressed during this event
 };
 
 // Represents a moment in an ongoing most probably touch event
@@ -1678,11 +1678,11 @@ struct ImPointerEvent
 struct ImGestureEvent
 {
     // Members (Properties)
-    ImGuiGestureType GestureType;       // Type of the represented ongoing gesture
-    ImGuiGestureState GestureState;     // The current phase of the represented gesture
-    ImU32 GestureId;                    // A unique id for the represented ongoing gesture
-    ImVec2 PixelLocation;               // Usually the focusing location of the represented gesture, its meaning is properly defined for each type in ImGuiGestureType_ enum
-    ImVec2 Parameter;                   // Extra parameter for the represented gesture, its meaning is properly defined for each type in ImGuiGestureType_ enum
+    ImGuiGestureType    GestureType;    // Type of the represented ongoing gesture
+    ImGuiGestureState   GestureState;   // The current phase of the represented gesture
+    ImU32               GestureId;      // A unique id for the represented ongoing gesture
+    ImVec2              PixelLocation;  // Usually the focusing location of the represented gesture, its meaning is properly defined for each type in ImGuiGestureType_ enum
+    ImVec2              Parameter;      // Extra parameter for the represented gesture, its meaning is properly defined for each type in ImGuiGestureType_ enum
 };
 
 //-----------------------------------------------------------------------------
