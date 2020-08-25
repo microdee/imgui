@@ -124,6 +124,8 @@ struct ImFontConfig;                // Configuration data when adding a font or 
 struct ImFontGlyph;                 // A single font glyph (code point + coordinates within in ImFontAtlas + offset)
 struct ImFontGlyphRangesBuilder;    // Helper to build glyph ranges from text/string data
 struct ImColor;                     // Helper functions to create a color that can be converted to either u32 or float4 (*OBSOLETE* please avoid using)
+struct ImPointerEvent;              // Structure representing a user event pointing at or interacting with something
+struct ImGestureEvent;              // Structure describing an ongoing touch or touchpad gesture
 struct ImGuiContext;                // Dear ImGui context (opaque structure, unless including imgui_internal.h)
 struct ImGuiIO;                     // Main configuration and I/O between your application and ImGui
 struct ImGuiInputTextCallbackData;  // Shared state of InputText() when using custom ImGuiInputTextCallback (rare/advanced use)
@@ -1644,6 +1646,43 @@ struct ImGuiStyle
 
     IMGUI_API ImGuiStyle();
     IMGUI_API void ScaleAllSizes(float scale_factor);
+};
+
+//-----------------------------------------------------------------------------
+// Pointer and gesture events
+// Defined before ImGuiIO so compiler knows the size of these structs
+//-----------------------------------------------------------------------------
+
+// Representing an event considering a pointing interaction by various devices (mouse, touch, touchpad, pen)
+// Pattern is mostly copied from Win32 API, winuser.h
+// https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-pointer_info
+struct ImPointerEvent
+{
+    // Members (Properties)
+    ImGuiPointerType PointerType;       // The type of device this event is received from
+    ImU32 PointerId;                    // The unique ID for the physical pointer
+    ImU32 FrameId;                      // The unique ID for this specific event
+    ImGuiPointerFlags PointerFlags;     // Indicating the state of this pointer event and other properties
+    ImVec2 PixelLocation;               // Current location of this pointer event
+    ImVec4 ExtraAxis;                   // Extra axis associated with this event (like HV mouse wheel delta)
+
+    // Members (Buttons/Modifiers)
+    ImGuiButtonFlags PointerButtons;    // Currently pressed buttons of the pointer device 
+    ImGuiPointerBtnCh ButtonChanged;    // Enum representing a change in pointer buttons
+    ImGuiKeyModFlags ModifierKeys;      // Modifier keys being pressed during this event
+};
+
+// Represents a moment in an ongoing most probably touch event
+// Pattern is loosely based on Win32 API, winuser.h
+// https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-gestureinfo
+struct ImGestureEvent
+{
+    // Members (Properties)
+    ImGuiGestureType GestureType;       // Type of the represented ongoing gesture
+    ImGuiGestureState GestureState;     // The current phase of the represented gesture
+    ImU32 GestureId;                    // A unique id for the represented ongoing gesture
+    ImVec2 PixelLocation;               // Usually the focusing location of the represented gesture, its meaning is properly defined for each type in ImGuiGestureType_ enum
+    ImVec2 Parameter;                   // Extra parameter for the represented gesture, its meaning is properly defined for each type in ImGuiGestureType_ enum
 };
 
 //-----------------------------------------------------------------------------
