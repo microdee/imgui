@@ -148,6 +148,9 @@ typedef int ImGuiKey;               // -> enum ImGuiKey_             // Enum: A 
 typedef int ImGuiNavInput;          // -> enum ImGuiNavInput_        // Enum: An input identifier for navigation
 typedef int ImGuiMouseButton;       // -> enum ImGuiMouseButton_     // Enum: A mouse button identifier (0=left, 1=right, 2=middle)
 typedef int ImGuiMouseCursor;       // -> enum ImGuiMouseCursor_     // Enum: A mouse cursor identifier
+typedef int ImGuiPointerType;       // -> enum ImGuiPointerType_     // Enum: Type of the input pointer event
+typedef int ImGuiGestureType;       // -> enum ImGuiGestureType_     // Enum: Type of an ongoing gesture
+typedef int ImGuiPointerBtnCh;      // -> enum ImGuiPointerBtnCh_    // Enum: Indicates changing a button on the pointing device
 typedef int ImGuiStyleVar;          // -> enum ImGuiStyleVar_        // Enum: A variable identifier for styling
 typedef int ImDrawCornerFlags;      // -> enum ImDrawCornerFlags_    // Flags: for ImDrawList::AddRect(), AddRectFilled() etc.
 typedef int ImDrawListFlags;        // -> enum ImDrawListFlags_      // Flags: for ImDrawList
@@ -169,6 +172,8 @@ typedef int ImGuiTabBarFlags;       // -> enum ImGuiTabBarFlags_     // Flags: f
 typedef int ImGuiTabItemFlags;      // -> enum ImGuiTabItemFlags_    // Flags: for BeginTabItem()
 typedef int ImGuiTreeNodeFlags;     // -> enum ImGuiTreeNodeFlags_   // Flags: for TreeNode(), TreeNodeEx(), CollapsingHeader()
 typedef int ImGuiWindowFlags;       // -> enum ImGuiWindowFlags_     // Flags: for Begin(), BeginChild()
+typedef int ImGuiPointerFlags;      // -> enum ImGuiPointerFlags_    // Flags: indicating time of a pointer event
+typedef int ImGuiGestureState;      // -> enum ImGuiGestureState_    // Flags: State of an ongoing gesture
 
 // Other types
 #ifndef ImTextureID                 // ImTextureID [configurable type: override in imconfig.h with '#define ImTextureID xxx']
@@ -1333,6 +1338,138 @@ enum ImGuiMouseCursor_
 #ifndef IMGUI_DISABLE_OBSOLETE_FUNCTIONS
     , ImGuiMouseCursor_Count_ = ImGuiMouseCursor_COUNT      // [renamed in 1.60]
 #endif
+};
+
+// Type of the device the pointer event came from
+// Pattern is copied from Win32 API, winuser.h
+// https://docs.microsoft.com/en-us/windows/win32/api/winuser/ne-winuser-tagpointer_input_type
+enum ImGuiPointerType_
+{
+    ImGuiPointerType_Pointer,
+    ImGuiPointerType_Touch,
+    ImGuiPointerType_Pen,
+    ImGuiPointerType_Mouse,
+    ImGuiPointerType_Touchpad
+};
+
+// Pointer device (mouse) button transitioning
+// Pattern is copied from Win32 API, winuser.h
+// https://docs.microsoft.com/en-us/windows/win32/api/winuser/ne-winuser-pointer_button_change_type
+enum ImGuiPointerBtnCh_
+{
+    ImGuiPointerBtnCh_None,
+    ImGuiPointerBtnCh_FirstButton_Down,
+    ImGuiPointerBtnCh_FirstButton_Up,
+    ImGuiPointerBtnCh_SecondButton_Down,
+    ImGuiPointerBtnCh_SecondButton_Up,
+    ImGuiPointerBtnCh_ThirdButton_Down,
+    ImGuiPointerBtnCh_ThirdButton_Up,
+    ImGuiPointerBtnCh_FourthButton_Down,
+    ImGuiPointerBtnCh_FourthButton_Up,
+    ImGuiPointerBtnCh_FifthButton_Down,
+    ImGuiPointerBtnCh_FifthButton_Up
+};
+
+// Flags describing the nature of a pointer input event
+// Pattern is copied from Win32 API, winuser.h
+// https://docs.microsoft.com/en-us/previous-versions/windows/desktop/inputmsg/pointer-flags-contants
+enum ImGuiPointerFlags_
+{
+    ImGuiPointerFlags_None             = 0,
+
+    // Indicates the arrival of a new pointer.
+    ImGuiPointerFlags_New              = 1 << 0,
+
+    // Indicates that this pointer continues to exist. When this flag is not set, it indicates the pointer has left detection range.
+    ImGuiPointerFlags_InRange          = 1 << 1,
+
+    // Indicates that this pointer is in contact with the digitizer surface. When this flag is not set, it indicates a hovering pointer.
+    ImGuiPointerFlags_InContact        = 1 << 2,
+
+    // Indicates a primary action, analogous to a left mouse button down.
+    // A touch pointer has this flag set when it is in contact with the digitizer surface.
+    // A pen pointer has this flag set when it is in contact with the digitizer surface with no buttons pressed.
+    // A mouse pointer has this flag set when the left mouse button is down.
+    ImGuiPointerFlags_FirstButton      = 1 << 3,
+
+    // Indicates a secondary action, analogous to a right mouse button down.
+    // A touch pointer does not use this flag.
+    // A pen pointer has this flag set when it is in contact with the digitizer surface with the pen barrel button pressed.
+    // A mouse pointer has this flag set when the right mouse button is down.
+    ImGuiPointerFlags_SecondButton     = 1 << 4,
+
+    // Analogous to a mouse wheel button down.
+    // A touch pointer does not use this flag.
+    // A pen pointer does not use this flag.
+    // A mouse pointer has this flag set when the mouse wheel button is down.
+    ImGuiPointerFlags_ThirdButton      = 1 << 5,
+
+    // Analogous to a first extended mouse (XButton1) button down.
+    // A touch pointer does not use this flag.
+    // A pen pointer does not use this flag.
+    // A mouse pointer has this flag set when the first extended mouse (XBUTTON1) button is down.
+    ImGuiPointerFlags_FourthButton     = 1 << 6,
+
+    // Analogous to a second extended mouse (XButton2) button down.
+    // A touch pointer does not use this flag.
+    // A pen pointer does not use this flag.
+    // A mouse pointer has this flag set when the second extended mouse (XBUTTON2) button is down.
+    ImGuiPointerFlags_FifthButton      = 1 << 7,
+
+    // Indicates this pointer to be the one invoking most user events (like simple tapping).
+    // Non-primary pointers don't have all the features and usages what primary pointers have
+    // Mouse pointers are always primary
+    ImGuiPointerFlags_Primary          = 1 << 8,
+
+    // Confidence is a suggestion from the source device about whether the pointer represents an intended or accidental interaction,
+    ImGuiPointerFlags_Confidence       = 1 << 9,
+
+    // Indicates that the pointer is departing in an abnormal manner, such as when the system receives invalid input for the pointer or when a device with active pointers departs abruptly.
+    ImGuiPointerFlags_Canceled         = 1 << 10,
+
+    // Indicates that this pointer transitioned to a down state; that is, it made contact with the digitizer surface.
+    ImGuiPointerFlags_Down             = 1 << 11,
+
+    // Indicates that this is a simple update that does not include pointer state changes.
+    ImGuiPointerFlags_Update           = 1 << 12,
+
+    // Indicates that this pointer transitioned to an up state; that is, contact with the digitizer surface ended.
+    ImGuiPointerFlags_Up               = 1 << 13,
+
+    // Indicates input associated with a pointer wheel. For mouse pointers, this is equivalent to the action of the mouse scroll wheel
+    ImGuiPointerFlags_Wheel            = 1 << 14,
+
+    // Indicates input associated with a pointer h-wheel. For mouse pointers, this is equivalent to the action of the mouse horizontal scroll wheel
+    ImGuiPointerFlags_HWheel           = 1 << 15,
+
+    ImGuiPointerFlags_CaptureChanged   = 1 << 16, // Shouldn't be used in Dear ImGui
+    ImGuiPointerFlags_HasTransform     = 1 << 17, // Shouldn't be used in Dear ImGui
+};
+
+// The state of a currently ongoing gesture
+// Pattern is loosely based on Win32 API, winuser.h
+// https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-gestureinfo
+enum ImGuiGestureState_
+{
+    ImGuiGestureState_None      = 0,
+    ImGuiGestureState_Begin     = 1 << 0, // Gesture has been detected to start
+    ImGuiGestureState_Inertia   = 1 << 1, // Gesture events are still received after the actual interaction is finished (like with panning)
+    ImGuiGestureState_End       = 1 << 2  // Gesture stopped
+};
+
+// The type of a currently ongoing gesture
+// Pattern is loosely based on Win32 API, winuser.h
+// https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-gestureinfo
+enum ImGuiGestureType_
+{
+    ImGuiGestureType_None,
+    ImGuiGestureType_Begin,           // Undefined
+    ImGuiGestureType_End,             // Undefined
+    ImGuiGestureType_Zoom,            // Two fingers pinching
+    ImGuiGestureType_Pan,             // Panning/scrolling an element
+    ImGuiGestureType_Rotate,          // Two fingers rotating
+    ImGuiGestureType_TwoFingerTap,    // Tapping two fingers at the same time
+    ImGuiGestureType_PressAndTap      // Double-tap
 };
 
 // Enumeration for ImGui::SetWindow***(), SetNextWindow***(), SetNextItem***() functions
