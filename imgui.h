@@ -151,7 +151,6 @@ typedef int ImGuiNavInput;          // -> enum ImGuiNavInput_        // Enum: An
 typedef int ImGuiMouseButton;       // -> enum ImGuiMouseButton_     // Enum: A mouse button identifier (0=left, 1=right, 2=middle)
 typedef int ImGuiMouseCursor;       // -> enum ImGuiMouseCursor_     // Enum: A mouse cursor identifier
 typedef int ImGuiPointerType;       // -> enum ImGuiPointerType_     // Enum: Type of the input pointer event
-typedef int ImGuiGestureType;       // -> enum ImGuiGestureType_     // Enum: Type of an ongoing gesture
 typedef int ImGuiPointerBtnCh;      // -> enum ImGuiPointerBtnCh_    // Enum: Indicates changing a button on the pointing device
 typedef int ImGuiStyleVar;          // -> enum ImGuiStyleVar_        // Enum: A variable identifier for styling
 typedef int ImDrawCornerFlags;      // -> enum ImDrawCornerFlags_    // Flags: for ImDrawList::AddRect(), AddRectFilled() etc.
@@ -175,7 +174,6 @@ typedef int ImGuiTabItemFlags;      // -> enum ImGuiTabItemFlags_    // Flags: f
 typedef int ImGuiTreeNodeFlags;     // -> enum ImGuiTreeNodeFlags_   // Flags: for TreeNode(), TreeNodeEx(), CollapsingHeader()
 typedef int ImGuiWindowFlags;       // -> enum ImGuiWindowFlags_     // Flags: for Begin(), BeginChild()
 typedef int ImGuiPointerFlags;      // -> enum ImGuiPointerFlags_    // Flags: indicating time of a pointer event
-typedef int ImGuiGestureState;      // -> enum ImGuiGestureState_    // Flags: State of an ongoing gesture
 
 // Other types
 #ifndef ImTextureID                 // ImTextureID [configurable type: override in imconfig.h with '#define ImTextureID xxx']
@@ -1448,56 +1446,6 @@ enum ImGuiPointerFlags_
     ImGuiPointerFlags_HasTransform     = 1 << 17, // Shouldn't be used in Dear ImGui
 };
 
-// The state of a currently ongoing gesture
-// Pattern is loosely based on Win32 API, winuser.h
-// https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-gestureinfo
-enum ImGuiGestureState_
-{
-    ImGuiGestureState_None      = 0,
-    ImGuiGestureState_Begin     = 1 << 0, // Gesture has been detected to start
-    ImGuiGestureState_Inertia   = 1 << 1, // Gesture events are still received after the actual interaction is finished (like with panning)
-    ImGuiGestureState_End       = 1 << 2  // Gesture stopped
-};
-
-// The type of a currently ongoing gesture
-// Pattern is loosely based on Win32 API, winuser.h
-// https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-gestureinfo
-enum ImGuiGestureType_
-{
-    ImGuiGestureType_None,
-
-    // Undefined
-    ImGuiGestureType_Begin,
-
-    // Undefined
-    ImGuiGestureType_End,
-
-    // Two fingers pinching
-    // ImGestureEvent::PixelLocation:   The center point between the two pinching fingers
-    // ImGestureEvent::Parameter.x:     The distance between the two pinching fingers
-    ImGuiGestureType_Zoom,
-
-    // Panning/scrolling an element
-    // ImGestureEvent::PixelLocation:   The current position of the pan.
-    // ImGestureEvent::Parameter.x:     The distance between the two points.
-    ImGuiGestureType_Pan,
-
-    // Two fingers rotating
-    // ImGestureEvent::PixelLocation:   The center point between the two pinching fingers
-    // ImGestureEvent::Parameter.x:     The distance between the two pinching fingers
-    ImGuiGestureType_Rotate,
-
-    // Tapping two fingers at the same time
-    // ImGestureEvent::PixelLocation:   The center of the two fingers.
-    // ImGestureEvent::Parameter.x:     The distance between the two fingers
-    ImGuiGestureType_TwoFingerTap,
-
-    // Double-tap
-    // ImGestureEvent::PixelLocation:   The position that the first finger comes down on.
-    // ImGestureEvent::Parameter:       XY axis of Delta position between the two taps.
-    ImGuiGestureType_PressAndTap
-};
-
 // Enumeration for ImGui::SetWindow***(), SetNextWindow***(), SetNextItem***() functions
 // Represent a condition.
 // Important: Treat as a regular enum! Do NOT combine multiple values using binary operators! All the functions above treat 0 as a shortcut to ImGuiCond_Always.
@@ -1714,19 +1662,6 @@ struct ImPointerInternalState
     float       DownDuration;       // Duration this pointer has been present (0.0f when IsNew)
     ImVec2      DragMaxDistanceAbs; // Maximum distance, absolute, on each axis, of how much this pointer has traveled from its starting point
     float       DragMaxDistanceSqr; // Squared maximum distance of how much this pointer has traveled from its starting point
-}
-
-// Represents a moment in an ongoing most probably touch event
-// Pattern is loosely based on Win32 API, winuser.h
-// https://docs.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-gestureinfo
-struct ImGestureEvent
-{
-    // Members (Properties)
-    ImGuiGestureType    GestureType;    // Type of the represented ongoing gesture
-    ImGuiGestureState   GestureState;   // The current phase of the represented gesture
-    ImU32               GestureId;      // A unique id for the represented ongoing gesture
-    ImVec2              PixelLocation;  // Usually the focusing location of the represented gesture, its meaning is properly defined for each type in ImGuiGestureType_ enum
-    ImVec2              Parameter;      // Extra parameter for the represented gesture, its meaning is properly defined for each type in ImGuiGestureType_ enum
 };
 
 //-----------------------------------------------------------------------------
