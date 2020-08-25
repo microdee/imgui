@@ -1463,13 +1463,37 @@ enum ImGuiGestureState_
 enum ImGuiGestureType_
 {
     ImGuiGestureType_None,
-    ImGuiGestureType_Begin,           // Undefined
-    ImGuiGestureType_End,             // Undefined
-    ImGuiGestureType_Zoom,            // Two fingers pinching
-    ImGuiGestureType_Pan,             // Panning/scrolling an element
-    ImGuiGestureType_Rotate,          // Two fingers rotating
-    ImGuiGestureType_TwoFingerTap,    // Tapping two fingers at the same time
-    ImGuiGestureType_PressAndTap      // Double-tap
+
+    // Undefined
+    ImGuiGestureType_Begin,
+
+    // Undefined
+    ImGuiGestureType_End,
+
+    // Two fingers pinching
+    // ImGestureEvent::PixelLocation:   The center point between the two pinching fingers
+    // ImGestureEvent::Parameter.x:     The distance between the two pinching fingers
+    ImGuiGestureType_Zoom,
+
+    // Panning/scrolling an element
+    // ImGestureEvent::PixelLocation:   The current position of the pan.
+    // ImGestureEvent::Parameter.x:     The distance between the two points.
+    ImGuiGestureType_Pan,
+
+    // Two fingers rotating
+    // ImGestureEvent::PixelLocation:   The center point between the two pinching fingers
+    // ImGestureEvent::Parameter.x:     The distance between the two pinching fingers
+    ImGuiGestureType_Rotate,
+
+    // Tapping two fingers at the same time
+    // ImGestureEvent::PixelLocation:   The center of the two fingers.
+    // ImGestureEvent::Parameter.x:     The distance between the two fingers
+    ImGuiGestureType_TwoFingerTap,
+
+    // Double-tap
+    // ImGestureEvent::PixelLocation:   The position that the first finger comes down on.
+    // ImGestureEvent::Parameter:       XY axis of Delta position between the two taps.
+    ImGuiGestureType_PressAndTap
 };
 
 // Enumeration for ImGui::SetWindow***(), SetNextWindow***(), SetNextItem***() functions
