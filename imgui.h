@@ -1664,13 +1664,57 @@ struct ImPointerEvent
     ImU32               FrameId;        // The unique ID for this specific event
     ImGuiPointerFlags   PointerFlags;   // Indicating the state of this pointer event and other properties
     ImVec2              PixelLocation;  // Current location of this pointer event
-    ImVec4              ExtraAxis;      // Extra axis associated with this event (like HV mouse wheel delta)
+
+    // Extra axes associated with this event
+    // On Touch:    x: Orientation      0..1    y: Pressure         0..1    zw: Undefined
+    // On Pen:      x: Rotation         0..1    y: Pressure         0..1    z: Tilt X   w: Tilt Y
+    // On Mouse:    x: H Wheel delta    0..1    y: V Wheel delta    0..1    zw: Undefined
+    // On Touchpad: x: H Scroll delta   0..1    y: V Scroll delta   0..1    zw: Undefined
+    ImVec4              ExtraAxes;
 
     // Members (Buttons/Modifiers)
     ImGuiButtonFlags    PointerButtons; // Currently pressed buttons of the pointer device 
     ImGuiPointerBtnCh   ButtonChanged;  // Enum representing a change in pointer buttons
     ImGuiKeyModFlags    ModifierKeys;   // Modifier keys being pressed during this event
 };
+
+#ifndef IMGUI_MAX_POINTERID
+#define IMGUI_MAX_POINTERID 20
+#endif
+
+struct ImPointerInternalState
+{
+    // Members (Flags)
+    bool    Invalid         = true;     // This internal struct is only valid if this bool is false
+    bool    Visited         = false;    // This pointer state has been modified already on current frame. Reset at each draw
+
+    bool    IsTouch         = false;
+    bool    IsPen           = false;
+    bool    IsMouse         = false;
+    bool    IsTouchPad      = false;
+
+    bool    IsPrimary       = false;
+    bool    IsNew           = false;    // True only on the first frame this pointer is seen
+    bool    IsEnded         = false;    // True on the frame this pointer has ended
+    bool    IsCanceled      = false;    // True on the frame this pointer has abruptly disappeared
+    bool    AllowTrigger    = false;    // True if this pointer can trigger elements or false if it's part of a gesture (like panning)
+    bool    DownOwned       = false;    // Track if pointer was triggered inside a dear imgui window.
+
+    // Members (Pointer)
+    ImU32       Id;                 // Unique ID of the pointer
+    ImU32       FrameCtr;           // A simple frame counter for this pointer
+    double      StartOnTime;        // Absolute time this pointer has started at
+    ImVec2      Pos;                // Current location of this pointer event
+    ImVec2      PosPrev;            // Previous pointer position (note that PosDelta is not necessary == Pos-PosPrev, in case either position is invalid)
+    ImVec2      PosDelta;           // Pointer position delta. Note that this is zero if either current or previous position are invalid (-FLT_MAX,-FLT_MAX), so disappearing/reappearing won't have a huge delta.
+    ImVec2      StartPos;           // Position at the time the pointer appeared, regardless of AllowTrigger
+    ImGuiID     StartedOn = 0;      // If DownOwned is true, then store the ID of the widget this pointer has been started on
+    ImVec4      ExtraAxes;          // Extra axes coming from pointer
+    ImVec4      ExtraAxesPrev;      // Previous frame's extra axes
+    float       DownDuration;       // Duration this pointer has been present (0.0f when IsNew)
+    ImVec2      DragMaxDistanceAbs; // Maximum distance, absolute, on each axis, of how much this pointer has traveled from its starting point
+    float       DragMaxDistanceSqr; // Squared maximum distance of how much this pointer has traveled from its starting point
+}
 
 // Represents a moment in an ongoing most probably touch event
 // Pattern is loosely based on Win32 API, winuser.h
@@ -1824,6 +1868,9 @@ struct ImGuiIO
     float       PenPressure;                    // Touch/Pen pressure (0.0f to 1.0f, should be >0.0f only when MouseDown[0] == true). Helper storage currently unused by Dear ImGui.
     ImWchar16   InputQueueSurrogate;            // For AddInputCharacterUTF16
     ImVector<ImWchar> InputQueueCharacters;     // Queue of _characters_ input (obtained by platform back-end). Fill using AddInputCharacter() helper.
+
+    ImVector<ImPointerEvent> InputPointerEvents; // 
+    ImPointerInternalState PointerStates[IMGUI_MAX_POINTERID]; // Storing the states of individual pointers. Position of a pointer state in array is `ImPointerEvent::PointerId % IMGUI_MAX_POINTERID`
 
     IMGUI_API   ImGuiIO();
 };
