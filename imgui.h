@@ -1650,16 +1650,17 @@ struct ImPointerEvent
 struct ImPointerInternalState
 {
     // Members (Flags)
-    bool    Invalid         = true;     // This internal struct is only valid if this bool is false
+    bool    Valid           = false;    // This internal struct is only valid if this bool is true
     bool    Visited         = false;    // This pointer state has been modified already on current frame. Reset at each draw
 
     bool    IsTouch         = false;
     bool    IsPen           = false;
-    bool    IsMouse         = false;
-    bool    IsTouchPad      = false;
 
     bool    IsPrimary       = false;
     bool    IsNew           = false;    // True only on the first frame this pointer is seen
+    bool    IsDown          = false;    // True while the pointer is in contact with the screen (it's always true for touches)
+    bool    BecameDown      = false;    // Only true for the first frame this pointer became IsDown
+    bool    BecameUp        = false;    // Only true for the first frame this pointer is lifted up
     bool    IsEnded         = false;    // True on the frame this pointer has ended
     bool    IsCanceled      = false;    // True on the frame this pointer has abruptly disappeared
     bool    AllowTrigger    = false;    // True if this pointer can trigger elements or false if it's part of a gesture (like panning)
@@ -1669,14 +1670,20 @@ struct ImPointerInternalState
     ImU32       Id;                 // Unique ID of the pointer
     ImU32       FrameCtr;           // A simple frame counter for this pointer
     double      StartOnTime;        // Absolute time this pointer has started at
+    double      DownOnTime;         // Absolute time this pointer made contact at
     ImVec2      Pos;                // Current location of this pointer event
+    ImVec2      LastValidPos;       // The last known valid position for this pointer
     ImVec2      PosPrev;            // Previous pointer position (note that PosDelta is not necessary == Pos-PosPrev, in case either position is invalid)
     ImVec2      PosDelta;           // Pointer position delta. Note that this is zero if either current or previous position are invalid (-FLT_MAX,-FLT_MAX), so disappearing/reappearing won't have a huge delta.
     ImVec2      StartPos;           // Position at the time the pointer appeared, regardless of AllowTrigger
-    ImGuiID     StartedOn = 0;      // If DownOwned is true, then store the ID of the widget this pointer has been started on
+    ImVec2      DownPos;            // Position at the time the pointer actually contacted the digitizer regardless of AllowTrigger
+    ImGuiID     StartedOn = 0;      // When IsNew then store the ID of the widget this pointer has been started on
+    ImGuiID     DownOn = 0;         // If DownOwned is true, then store the ID of the widget this pointer has been started on
+    ImGuiID     HoveringOn = 0;     // This pointer is above this widget currently
     ImVec4      ExtraAxes;          // Extra axes coming from pointer
     ImVec4      ExtraAxesPrev;      // Previous frame's extra axes
-    float       DownDuration;       // Duration this pointer has been present (0.0f when IsNew)
+    float       DownDuration;       // Duration this pointer has been down
+    float       PointerDuration;    // Duration this pointer has been present (0.0f when IsNew)
     ImVec2      DragMaxDistanceAbs; // Maximum distance, absolute, on each axis, of how much this pointer has traveled from its starting point
     float       DragMaxDistanceSqr; // Squared maximum distance of how much this pointer has traveled from its starting point
 };
