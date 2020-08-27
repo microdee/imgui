@@ -1611,19 +1611,36 @@ struct ImPointerEvent
     ImU32               PointerId;      // The unique ID for the physical pointer
     ImU32               FrameId;        // The unique ID for this specific event
     ImGuiPointerFlags   PointerFlags;   // Indicating the state of this pointer event and other properties
-    ImVec2              PixelLocation;  // Current location of this pointer event
+    ImVec2              Position;       // Current location of this pointer event in ImGui coordinates
 
     // Extra axes associated with this event
     // On Touch:    x: Orientation      0..1    y: Pressure         0..1    zw: Undefined
-    // On Pen:      x: Rotation         0..1    y: Pressure         0..1    z: Tilt X   w: Tilt Y
-    // On Mouse:    x: H Wheel delta    0..1    y: V Wheel delta    0..1    zw: Undefined
-    // On Touchpad: x: H Scroll delta   0..1    y: V Scroll delta   0..1    zw: Undefined
+    // On Pen:      x: Rotation         0..1    y: Pressure         0..1    z: Tilt X       w: Tilt Y
+    // On Mouse:    x: H Wheel delta            y: V Wheel delta            zw: Undefined
+    // On Touchpad: x: H Scroll delta           y: V Scroll delta           zw: Undefined
     ImVec4              ExtraAxes;
 
-    // Members (Buttons/Modifiers)
-    ImGuiButtonFlags    PointerButtons; // Currently pressed buttons of the pointer device 
-    ImGuiPointerBtnCh   ButtonChanged;  // Enum representing a change in pointer buttons
-    ImGuiKeyModFlags    ModifierKeys;   // Modifier keys being pressed during this event
+    IMGUI_API ImPointerEvent(ImGuiPointerType ptrType, ImU32 ptrId, ImU32 frmId, ImVec2 pos)
+        : PointerType(ptrType)
+        , PointerId(ptrId)
+        , FrameId(frmId)
+        , Position(pos)
+        { }
+
+    // TODO: fluid API:
+    // WithPointerFlags(ImGuiPointerFlags flags)
+    // AsNew()
+    // AsPrimary()
+    // WithTouchContactInfo(bool isInRange, bool isInContact)
+    // WithConfidence()
+    // AsDown()
+    // AsUp()
+    // WithAxes(ImVec4 axes)
+    // WithRotation(float rot)
+    // WithPressure(float press)
+    // WithWheelDelta(ImVec2 wheelDelta)
+    // WithButtonFlags
+    // WithButtonArray
 };
 
 #ifndef IMGUI_MAX_POINTERID
