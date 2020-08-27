@@ -859,6 +859,8 @@ static void             ErrorCheckBeginEndCompareStacksSize(ImGuiWindow* window,
 static void             UpdateSettings();
 static void             UpdateMouseInputs();
 static void             UpdateMouseWheel();
+static void             UpdatePointersNewFrame();
+static void             UpdatePointersEndFrame();
 static void             UpdateTabFocus();
 static void             UpdateDebugToolItemPicker();
 static bool             UpdateWindowManualResize(ImGuiWindow* window, const ImVec2& size_auto_fit, int* border_held, int resize_grip_count, ImU32 resize_grip_col[4], const ImRect& visibility_rect);
@@ -1097,6 +1099,57 @@ void ImGuiIO::AddInputCharactersUTF8(const char* utf8_chars)
 void ImGuiIO::ClearInputCharacters()
 {
     InputQueueCharacters.resize(0);
+}
+
+void ImGuiIO::AddPointerEvent(const ImPointerEvent& event)
+{
+    if(event.PointerType == ImGuiPointerType_Mouse || event.PointerType == ImGuiPointerType_Touchpad)
+    {
+        // Use the regular mouse implementation
+        MousePos = event.Position;
+        for(int i=0; i<IM_ARRAYSIZE(MouseDown); i++)
+            MouseDown[i] = event.PointerFlags & (1 << (i+3));
+        MouseWheel = event.ExtraAxes.y;
+        MouseWheelH = event.ExtraAxes.x;
+        return;
+    }
+
+    // touches, pens and unspecified pointers
+    InputPointerEvents.push_back(event);
+    ImPointerInternalState& state = PointerStates[event.PointerId % IMGUI_MAX_POINTERID];
+    
+    state.Valid       = true;
+    state.Visited     = true;
+    state.IsTouch     = event.PointerType == ImGuiPointerType_Touch;
+    state.IsPen       = event.PointerType == ImGuiPointerType_Pen;
+    state.IsPrimary   = event.PointerFlags & ImGuiPointerFlags_Primary;
+    state.IsNew      |= event.PointerFlags & ImGuiPointerFlags_New;
+    state.IsCanceled |= event.PointerFlags & ImGuiPointerFlags_Canceled;
+    state.BecameDown |= event.PointerFlags & ImGuiPointerFlags_Down;
+    state.BecameUp   |= event.PointerFlags & ImGuiPointerFlags_Up;
+    
+    state.Id          = event.PointerId;
+    state.Pos         = event.Position;
+    state.ExtraAxes   = event.ExtraAxes;
+
+    switch (event.PointerType)
+    {
+    case ImGuiPointerType_Touch:
+    case ImGuiPointerType_Pointer:
+        // for touches, we assume down is the same as being present
+        // and it should be ended when the touch is lifted
+        state.IsEnded    |= event.PointerFlags & ImGuiPointerFlags_Up;
+        break;
+
+    case ImGuiPointerType_Pen:
+        // pens can hover above the screen without touching it yet
+        // for pens as of Microsoft winuser.h pointers, 
+        state.IsEnded    |= (event.PointerFlags & ImGuiPointerFlags_InRange) == 0;
+        break;
+    
+    default:
+        break;
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -3577,6 +3630,91 @@ void ImGui::UpdateMouseWheel()
     }
 }
 
+void ImGui::UpdatePointersNewFrame()
+{
+    ImGuiContext& g = *GImGui;
+
+    for(ImPointerEvent& ptrEvent : g.IO.InputPointerEvents)
+    {
+        ImPointerInternalState& state = g.IO.PointerStates[ptrEvent.PointerId % IMGUI_MAX_POINTERID];
+        if(IsMousePosValid(&state.Pos))
+            state.Pos = state.LastValidPos = ImFloor(state.Pos);
+
+        // If pointer is new or positions were invalid for any reason we cancel out movement in PosDelta
+        if (!state.IsNew && IsMousePosValid(&state.Pos) && IsMousePosValid(&state.PosPrev))
+            state.PosDelta = state.Pos - state.PosPrev;
+        else
+            state.PosDelta = ImVec2(0.0f, 0.0f);
+        if (state.PosDelta.x != 0.0f || state.PosDelta.y != 0.0f)
+            g.NavDisableMouseHover = false;
+
+        // Previous position is assigned at ImGui::UpdatePointersEndFrame()
+
+        if(state.IsNew)
+        {
+            state.StartOnTime = g.Time;
+            state.StartPos = state.Pos;
+            state.PointerDuration = 0.0f;
+            state.FrameCtr = 0;
+            // TODO: started on widget somewhere
+        }
+        if(state.BecameDown)
+        {
+            state.IsDown = true;
+            state.DownOnTime = g.Time;
+            state.DownPos = state.Pos;
+            state.DownDuration = 0.0f;
+            state.DragMaxDistanceAbs = ImVec2(0.0f, 0.0f);
+            state.DragMaxDistanceSqr = 0.0f;
+            // TODO: Down on widget somewhere
+        }
+        if(state.BecameUp)
+        {
+            state.IsDown = false;
+        }
+        if(state.IsDown)
+        {    
+            // Calculating dragging distance
+            ImVec2 delta_from_start_pos = IsMousePosValid(&state.Pos) ? (state.Pos - state.StartPos) : ImVec2(0.0f, 0.0f);
+            state.DragMaxDistanceSqr = ImMax(state.DragMaxDistanceSqr, ImLengthSqr(delta_from_start_pos));
+            state.DragMaxDistanceAbs.x = ImMax(state.DragMaxDistanceAbs.x, delta_from_start_pos.x < 0.0f ? -delta_from_start_pos.x : delta_from_start_pos.x);
+            state.DragMaxDistanceAbs.y = ImMax(state.DragMaxDistanceAbs.y, delta_from_start_pos.y < 0.0f ? -delta_from_start_pos.y : delta_from_start_pos.y);
+        }
+
+        // TODO: hovering widget somewhere
+    }
+}
+
+void ImGui::UpdatePointersEndFrame()
+{
+    ImGuiContext& g = *GImGui;
+    
+    for(ImPointerEvent& ptrEvent : g.IO.InputPointerEvents)
+    {
+        int i = ptrEvent.PointerId % IMGUI_MAX_POINTERID;
+        ImPointerInternalState& state = g.IO.PointerStates[i];
+
+        if(state.IsEnded || state.IsCanceled)
+        {
+            g.IO.PointerStates[i] = ImPointerInternalState();
+            continue;
+        }
+
+        state.Visited = false;
+        state.IsNew = false;
+        state.BecameDown = false;
+        state.BecameUp = false;
+        state.FrameCtr++;
+        state.PointerDuration += g.IO.DeltaTime;
+        if(state.IsDown)
+            state.DownDuration += g.IO.DeltaTime;
+        
+        state.PosPrev = state.Pos;
+        state.ExtraAxesPrev = state.ExtraAxes;
+    }
+    g.IO.InputPointerEvents.resize(0);
+}
+
 void ImGui::UpdateTabFocus()
 {
     ImGuiContext& g = *GImGui;
@@ -3799,6 +3937,9 @@ void ImGui::NewFrame()
 
     // Update gamepad/keyboard navigation
     NavUpdate();
+
+    // Update pointers before mouse
+    UpdatePointersNewFrame();
 
     // Update mouse input state
     UpdateMouseInputs();
@@ -4175,6 +4316,9 @@ void ImGui::EndFrame()
 
     // Update navigation: CTRL+Tab, wrap-around requests
     NavEndFrame();
+
+    // Finalize pointers' state
+    UpdatePointersEndFrame();
 
     // Drag and Drop: Elapse payload (if delivered, or if source stops being submitted)
     if (g.DragDropActive)

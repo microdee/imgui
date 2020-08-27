@@ -1782,6 +1782,8 @@ struct ImGuiIO
     IMGUI_API void  AddInputCharactersUTF8(const char* str);    // Queue new characters input from an UTF-8 string
     IMGUI_API void  ClearInputCharacters();                     // Clear the text input buffer manually
 
+    IMGUI_API void  AddPointerEvent(const ImPointerEvent& event);
+
     //------------------------------------------------------------------
     // Output - Updated by NewFrame() or EndFrame()/Render()
     // (when reading from the io.WantCaptureMouse, io.WantCaptureKeyboard flags to dispatch your inputs, it is
@@ -1829,7 +1831,10 @@ struct ImGuiIO
     ImVector<ImWchar> InputQueueCharacters;     // Queue of _characters_ input (obtained by platform back-end). Fill using AddInputCharacter() helper.
 
     ImVector<ImPointerEvent> InputPointerEvents; // 
-    ImPointerInternalState PointerStates[IMGUI_MAX_POINTERID]; // Storing the states of individual pointers. Position of a pointer state in array is `ImPointerEvent::PointerId % IMGUI_MAX_POINTERID`
+
+    // Storing the states of individual pointers. Position of a pointer state in array is `ImPointerEvent::PointerId % IMGUI_MAX_POINTERID`
+    // We can do this because we assume that the host has a sensical pointer ID assignment scheme which is hopefully not totally random
+    ImPointerInternalState PointerStates[IMGUI_MAX_POINTERID];
 
     IMGUI_API   ImGuiIO();
 };
