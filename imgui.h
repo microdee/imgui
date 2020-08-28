@@ -1830,8 +1830,6 @@ struct ImGuiIO
     ImWchar16   InputQueueSurrogate;            // For AddInputCharacterUTF16
     ImVector<ImWchar> InputQueueCharacters;     // Queue of _characters_ input (obtained by platform back-end). Fill using AddInputCharacter() helper.
 
-    ImVector<ImPointerEvent> InputPointerEvents; // 
-
     // Storing the states of individual pointers. Position of a pointer state in array is `ImPointerEvent::PointerId % IMGUI_MAX_POINTERID`
     // We can do this because we assume that the host has a sensical pointer ID assignment scheme which is hopefully not totally random
     ImPointerInternalState PointerStates[IMGUI_MAX_POINTERID];

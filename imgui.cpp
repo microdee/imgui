@@ -1115,7 +1115,6 @@ void ImGuiIO::AddPointerEvent(const ImPointerEvent& event)
     }
 
     // touches, pens and unspecified pointers
-    InputPointerEvents.push_back(event);
     ImPointerInternalState& state = PointerStates[event.PointerId % IMGUI_MAX_POINTERID];
     
     state.Valid       = true;
@@ -3634,9 +3633,11 @@ void ImGui::UpdatePointersNewFrame()
 {
     ImGuiContext& g = *GImGui;
 
-    for(ImPointerEvent& ptrEvent : g.IO.InputPointerEvents)
+    for(int i=0; i<IMGUI_MAX_POINTERID; i++)
     {
-        ImPointerInternalState& state = g.IO.PointerStates[ptrEvent.PointerId % IMGUI_MAX_POINTERID];
+        ImPointerInternalState& state = g.IO.PointerStates[i];
+        if(!state.Valid) continue;
+        
         if(IsMousePosValid(&state.Pos))
             state.Pos = state.LastValidPos = ImFloor(state.Pos);
 
@@ -3689,10 +3690,10 @@ void ImGui::UpdatePointersEndFrame()
 {
     ImGuiContext& g = *GImGui;
     
-    for(ImPointerEvent& ptrEvent : g.IO.InputPointerEvents)
+    for(int i=0; i<IMGUI_MAX_POINTERID; i++)
     {
-        int i = ptrEvent.PointerId % IMGUI_MAX_POINTERID;
         ImPointerInternalState& state = g.IO.PointerStates[i];
+        if(!state.Valid) continue;
 
         if(state.IsEnded || state.IsCanceled)
         {
@@ -3712,7 +3713,6 @@ void ImGui::UpdatePointersEndFrame()
         state.PosPrev = state.Pos;
         state.ExtraAxesPrev = state.ExtraAxes;
     }
-    g.IO.InputPointerEvents.resize(0);
 }
 
 void ImGui::UpdateTabFocus()
