@@ -980,6 +980,10 @@ struct ImGuiPtrOrIndex
     ImGuiPtrOrIndex(int index)  { Ptr = NULL; Index = index; }
 };
 
+//-----------------------------------------------------------------------------
+// [SECTION] Per-pointer state structs
+//-----------------------------------------------------------------------------
+
 struct ImGuiHoverState
 {
     ImGuiWindow*    HoveredWindow                   = NULL;     // Window the mouse is hovering. Will typically catch mouse inputs.
