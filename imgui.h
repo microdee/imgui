@@ -1334,7 +1334,8 @@ enum ImGuiMouseButton_
     ImGuiMouseButton_Left = 0,
     ImGuiMouseButton_Right = 1,
     ImGuiMouseButton_Middle = 2,
-    ImGuiMouseButton_COUNT = 5
+    ImGuiMouseButton_COUNT = 5,
+    ImGuiMouseButton_ANY = 0xFF
 };
 
 // Enumeration for GetMouseCursor()
