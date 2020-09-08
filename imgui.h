@@ -761,8 +761,35 @@ namespace ImGui
     IMGUI_API void          CaptureKeyboardFromApp(bool want_capture_keyboard_value = true);    // attention: misleading name! manually override io.WantCaptureKeyboard flag next frame (said flag is entirely left for your application to handle). e.g. force capture keyboard when your widget is being hovered. This is equivalent to setting "io.WantCaptureKeyboard = want_capture_keyboard_value"; after the next NewFrame() call.
 
     // Inputs Utilities: Pointers
+    // - Pointer buttons are using the same mouse button enums as mouse functions
+    // - Primary pointer can be the first touch, or the first pen, or if neither the mouse
     IMGUI_API bool          WantCapturePointer(ImU32 pointerId);                                // Returns true when Dear ImGui will use the queried pointer inputs, in this case do not dispatch them to your main game/application (either way, always pass on pointer inputs to imgui). (e.g. unclicked/tapped pointer is hovering over an imgui window, widget is active, pointer was clicked/tapped over an imgui window, etc.).
+
+    IMGUI_API bool          IsPointerMouse(ImU32 pointerId = IMGUI_POINTER_PRIMARY);
+    IMGUI_API bool          IsPointerTouch(ImU32 pointerId = IMGUI_POINTER_PRIMARY);
+    IMGUI_API bool          IsPointerPen(ImU32 pointerId = IMGUI_POINTER_PRIMARY);
+    IMGUI_API ImU32         GetPrimaryPointerId();
+
+    IMGUI_API double        GetPointerStartOnTime(ImU32 pointerId = IMGUI_POINTER_PRIMARY);        // Absolute time this pointer has started at
+    IMGUI_API ImVec2        GetPointerPos(ImU32 pointerId = IMGUI_POINTER_PRIMARY);                // Current location of this pointer event
+    IMGUI_API ImVec2        GetPointerPosDelta(ImU32 pointerId = IMGUI_POINTER_PRIMARY);           // Pointer position delta. Note that this is zero if either current or previous position are invalid (-FLT_MAX,-FLT_MAX), so disappearing/reappearing won't have a huge delta.
+    IMGUI_API ImVec2        GetPointerStartPos(ImU32 pointerId = IMGUI_POINTER_PRIMARY);           // Position at the time the pointer appeared, regardless of AllowTrigger
+    IMGUI_API ImGuiID       GetPointerStartedOn(ImU32 pointerId = IMGUI_POINTER_PRIMARY);          // When IsNew then store the ID of the widget this pointer has been started on
+    IMGUI_API ImVec4        GetPointerExtraAxes(ImU32 pointerId = IMGUI_POINTER_PRIMARY);          // Extra axes coming from pointer
+    IMGUI_API ImVec4        GetPointerExtraAxesDelta(ImU32 pointerId = IMGUI_POINTER_PRIMARY);     // Delta of extra axes between frames
+    IMGUI_API float         GetPointerPointerDuration(ImU32 pointerId = IMGUI_POINTER_PRIMARY);    // Duration this pointer has been present (0.0f when IsNew)
+    IMGUI_API ImVec2        GetPointerDragDelta(ImU32 pointerId = IMGUI_POINTER_PRIMARY);
+    IMGUI_API ImVec2        GetPointerDragMaxDistanceAbs(ImU32 pointerId = IMGUI_POINTER_PRIMARY); // Maximum distance, absolute, on each axis, of how much this pointer has traveled from its starting point
+    IMGUI_API float         GetPointerDragMaxDistanceSqr(ImU32 pointerId = IMGUI_POINTER_PRIMARY); // Squared maximum distance of how much this pointer has traveled from its starting point
+    
+    IMGUI_API bool          IsPointerDown(ImGuiMouseButton button, ImU32 pointerId = IMGUI_POINTER_PRIMARY);                               // is mouse button held?
+    IMGUI_API bool          IsPointerClicked(ImGuiMouseButton button, bool repeat = false, ImU32 pointerId = IMGUI_POINTER_PRIMARY);       // did mouse button clicked? (went from !Down to Down)
+    IMGUI_API bool          IsPointerReleased(ImGuiMouseButton button, ImU32 pointerId = IMGUI_POINTER_PRIMARY);                           // did mouse button released? (went from Down to !Down)
+    IMGUI_API bool          IsPointerDoubleClicked(ImGuiMouseButton button, ImU32 pointerId = IMGUI_POINTER_PRIMARY);                      // did mouse button double-clicked? (note that a double-click will also report IsPointerClicked() == true)
+    IMGUI_API bool          IsPointerHoveringRect(const ImVec2& r_min, const ImVec2& r_max, bool clip = true, ImU32 pointerId = IMGUI_POINTER_PRIMARY);// is mouse hovering given bounding rect (in screen space). clipped by current clipping settings, but disregarding of other consideration of focus/window ordering/popup-block.
+    IMGUI_API bool          IsPointerPosValid(const ImVec2* mouse_pos = NULL);                    // by convention we use (-FLT_MAX,-FLT_MAX) to denote that there is no mouse available
     // TODO: query pointer states like with mouse
+    // TODO: Implement new functions
 
     // Inputs Utilities: Mouse
     // - To refer to a mouse button, you may use named enums in your code e.g. ImGuiMouseButton_Left, ImGuiMouseButton_Right.
