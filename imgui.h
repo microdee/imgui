@@ -115,7 +115,10 @@ Index of this file:
 #define IMGUI_MAX_POINTERID 10
 #endif
 
-#define IMGUI_POINTER_ARR_SIZE IMGUI_MAX_POINTERID + 1
+#define IMGUI_POINTER_MOUSE      IMGUI_MAX_POINTERID            // indicates the pointer ID of the mouse
+#define IMGUI_POINTER_ARR_SIZE  (IMGUI_MAX_POINTERID + 1)       // the true count of pointers
+#define IMGUI_POINTER_PRIMARY   (IMGUI_POINTER_ARR_SIZE + 1)    // Public function input ID used to get info about the currently primary pointer
+#define IMGUI_POINTER_ANY       (IMGUI_POINTER_PRIMARY + 1)     // Public function input ID used to get an accumulated state from all pointers (behavior is only defined for boolean results)
 
 //-----------------------------------------------------------------------------
 // Forward declarations and basic types
