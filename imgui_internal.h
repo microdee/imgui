@@ -977,6 +977,173 @@ struct ImGuiPtrOrIndex
     ImGuiPtrOrIndex(int index)  { Ptr = NULL; Index = index; }
 };
 
+#ifndef IMGUI_MAX_POINTERID
+#define IMGUI_MAX_POINTERID 10
+#endif
+
+struct ImGuiHoverState
+{
+    ImGuiWindow*    HoveredWindow                   = NULL;     // Window the mouse is hovering. Will typically catch mouse inputs.
+    ImGuiWindow*    HoveredRootWindow               = NULL;     // == HoveredWindow ? HoveredWindow->RootWindow : NULL, merely a shortcut to avoid null test in some situation.
+    ImGuiWindow*    HoveredWindowUnderMovingWindow  = NULL;     // Hovered window ignoring MovingWindow. Only set if MovingWindow is set.
+    ImGuiWindow*    MovingWindow                    = NULL;     // Track the window we clicked on (in order to preserve focus). The actual window that is moved is generally MovingWindow->RootWindow.
+    ImGuiWindow*    WheelingWindow                  = NULL;     // Track the window we started mouse-wheeling on. Until a timer elapse or mouse has moved, generally keep scrolling the same window even if during the course of scrolling the mouse ends up hovering a child window.
+    ImVec2          WheelingWindowRefMousePos       = {0.0f, 0.0f};
+    float           WheelingWindowTimer             = 0.0f;
+    
+    ImGuiID         HoveredId                       = 0;        // Hovered widget
+    ImGuiID         HoveredIdPreviousFrame          = 0;
+    bool            HoveredIdAllowOverlap           = false;
+    bool            HoveredIdDisabled               = false;    // At least one widget passed the rect test, but has been discarded by disabled flag or popup inhibit. May be true even if HoveredId == 0.
+    float           HoveredIdTimer                  = 0.0f;     // Measure contiguous hovering time
+    float           HoveredIdNotActiveTimer         = 0.0f;     // Measure contiguous hovering time where the item has not been active
+};
+
+struct ImGuiActiveState
+{
+    ImGuiID             ActiveId;                           // Active widget
+    ImGuiID             ActiveIdIsAlive;                    // Active widget has been seen this frame (we can't use a bool as the ActiveId may change within the frame)
+    float               ActiveIdTimer;
+    bool                ActiveIdIsJustActivated;            // Set at the time of activation for one frame
+    bool                ActiveIdAllowOverlap;               // Active widget allows another widget to steal active id (generally for overlapping widgets, but not always)
+    bool                ActiveIdNoClearOnFocusLoss;         // Disable losing active id if the active id window gets unfocused.
+    bool                ActiveIdHasBeenPressedBefore;       // Track whether the active id led to a press (this is to allow changing between PressOnClick and PressOnRelease without pressing twice). Used by range_select branch.
+    bool                ActiveIdHasBeenEditedBefore;        // Was the value associated to the widget Edited over the course of the Active state.
+    bool                ActiveIdHasBeenEditedThisFrame;
+    ImU32               ActiveIdUsingNavDirMask;            // Active widget will want to read those nav move requests (e.g. can activate a button and move away from it)
+    ImU32               ActiveIdUsingNavInputMask;          // Active widget will want to read those nav inputs.
+    ImU64               ActiveIdUsingKeyInputMask;          // Active widget will want to read those key inputs. When we grow the ImGuiKey enum we'll need to either to order the enum to make useful keys come first, either redesign this into e.g. a small array.
+    ImVec2              ActiveIdClickOffset;                // Clicked offset from upper-left corner, if applicable (currently only set by ButtonBehavior)
+    ImGuiWindow*        ActiveIdWindow;
+    ImGuiInputSource    ActiveIdSource;                     // Activating with mouse or nav (gamepad/keyboard)
+    int                 ActiveIdMouseButton;
+    ImGuiID             ActiveIdPreviousFrame;
+    bool                ActiveIdPreviousFrameIsAlive;
+    bool                ActiveIdPreviousFrameHasBeenEditedBefore;
+    ImGuiWindow*        ActiveIdPreviousFrameWindow;
+    ImGuiID             LastActiveId;                       // Store the last non-zero ActiveId, useful for animation.
+    float               LastActiveIdTimer;                  // Store the last non-zero ActiveId timer since the beginning of activation, useful for animation.
+
+    ImGuiActiveState()
+    {
+        ActiveId = 0;
+        ActiveIdIsAlive = 0;
+        ActiveIdTimer = 0.0f;
+        ActiveIdIsJustActivated = false;
+        ActiveIdAllowOverlap = false;
+        ActiveIdNoClearOnFocusLoss = false;
+        ActiveIdHasBeenPressedBefore = false;
+        ActiveIdHasBeenEditedBefore = false;
+        ActiveIdHasBeenEditedThisFrame = false;
+        ActiveIdUsingNavDirMask = 0x00;
+        ActiveIdUsingNavInputMask = 0x00;
+        ActiveIdUsingKeyInputMask = 0x00;
+        ActiveIdClickOffset = ImVec2(-1, -1);
+        ActiveIdWindow = NULL;
+        ActiveIdSource = ImGuiInputSource_None;
+        ActiveIdMouseButton = 0;
+        ActiveIdPreviousFrame = 0;
+        ActiveIdPreviousFrameIsAlive = false;
+        ActiveIdPreviousFrameHasBeenEditedBefore = false;
+        ActiveIdPreviousFrameWindow = NULL;
+        LastActiveId = 0;
+        LastActiveIdTimer = 0.0f;
+    }
+};
+
+struct ImGuiDragDropState
+{
+    bool                    Active;
+    bool                    WithinSource;               // Set when within a BeginDragDropXXX/EndDragDropXXX block for a drag source.
+    bool                    WithinTarget;               // Set when within a BeginDragDropXXX/EndDragDropXXX block for a drag target.
+    ImGuiDragDropFlags      SourceFlags;
+    int                     SourceFrameCount;
+    int                     MouseButton;
+    ImGuiPayload            Payload;
+    ImRect                  TargetRect;                 // Store rectangle of current target candidate (we favor small targets when overlapping)
+    ImGuiID                 TargetId;
+    ImGuiDragDropFlags      AcceptFlags;
+    float                   AcceptIdCurrRectSurface;    // Target item surface (we resolve overlapping targets by prioritizing the smaller surface)
+    ImGuiID                 AcceptIdCurr;               // Target item id (set at the time of accepting the payload)
+    ImGuiID                 AcceptIdPrev;               // Target item id from previous frame (we need to store this to allow for overlapping drag and drop targets)
+    int                     AcceptFrameCount;           // Last time a target expressed a desire to accept the source
+    ImGuiID                 HoldJustPressedId;          // Set when holding a payload just made ButtonBehavior() return a press.
+    ImVector<unsigned char> PayloadBufHeap;             // We don't expose the ImVector<> directly, ImGuiPayload only holds pointer+size
+    unsigned char           PayloadBufLocal[16];        // Local buffer for small payloads
+
+    ImGuiDragDropState()
+    {
+        Active = WithinSource = WithinTarget = false;
+        SourceFlags = ImGuiFlags_None;
+        SourceFrameCount = -1;
+        MouseButton = -1;
+        TargetId = 0;
+        AcceptFlags = ImGuiFlags_None;
+        AcceptIdCurrRectSurface = 0.0f;
+        AcceptIdPrev = AcceptIdCurr = 0;
+        AcceptFrameCount = -1;
+        HoldJustPressedId = 0;
+        memset(PayloadBufLocal, 0, sizeof(PayloadBufLocal));
+    }
+};
+
+struct ImGuiPointerButtonState
+{
+    bool        IsDown              = false;        // True while the pointer is in contact with the screen (it's always true for touches)
+    ImVec2      ClickedPos          = {0.0f, 0.0f}; // Position at time of clicking
+    double      ClickedTime         = 0.0;          // Time of last click (used to figure out double-click)
+    bool        Clicked             = false;        // button went from !Down to Down
+    bool        DoubleClicked       = false;        // Has  button been double-clicked?
+    bool        Released            = false;        // button went from Down to !Down
+    bool        DownOwned           = false;        // Track if button was clicked inside a dear imgui window. We don't request  capture from the application if click started outside ImGui bounds.
+    bool        DownWasDoubleClick  = false;        // Track if button down was a double-click
+    float       DownDuration        = 0.0f;         // Duration the  button has been down (0.0f == just clicked)
+    float       DownDurationPrev    = 0.0f;         // Previous time the  button has been down
+    ImVec2      DragMaxDistanceAbs  = {0.0f, 0.0f}; // Maximum distance, absolute, on each axis, of how much  has traveled from the clicking point
+    float       DragMaxDistanceSqr  = 0.0f;         // Squared maximum distance of how much  has traveled from the clicking point
+    ImGuiID     DownOn              = 0;            // If DownOwned is true, then store the ID of the widget this pointer has been started on
+
+    ImGuiHoverState Hovering;
+};
+
+struct ImGuiPointerInternalState
+{
+    // Members (Flags)
+    bool    Valid           = false;    // This internal struct is only valid if this bool is true
+    bool    Visited         = false;    // This pointer state has been modified already on current frame. Reset at each draw
+
+    bool    IsMouse         = false;
+    bool    IsTouch         = false;
+    bool    IsPen           = false;
+
+    bool    IsPrimary       = false;
+    bool    IsNew           = false;    // True only on the first frame this pointer is seen
+    bool    IsEnded         = false;    // True on the frame this pointer has ended
+    bool    IsCanceled      = false;    // True on the frame this pointer has abruptly disappeared
+    bool    AllowTrigger    = false;    // True if this pointer can trigger elements or false if it's part of a gesture (like panning)
+
+    ImGuiPointerButtonState Buttons[5]; // 
+    ImGuiDragDropState      DragDrop;
+    ImGuiHoverState         Hover;
+
+    // Members (Pointer)
+    ImU32       Id                  = false;                    // Unique ID of the pointer
+    ImU32       FrameCtr            = false;                    // A simple frame counter for this pointer
+    double      StartOnTime         = false;                    // Absolute time this pointer has started at
+    ImVec2      Pos                 = {0.0f, 0.0f};             // Current location of this pointer event
+    ImVec2      LastValidPos        = {0.0f, 0.0f};             // The last known valid position for this pointer
+    ImVec2      PosPrev             = {0.0f, 0.0f};             // Previous pointer position (note that PosDelta is not necessary == Pos-PosPrev, in case either position is invalid)
+    ImVec2      PosDelta            = {0.0f, 0.0f};             // Pointer position delta. Note that this is zero if either current or previous position are invalid (-FLT_MAX,-FLT_MAX), so disappearing/reappearing won't have a huge delta.
+    ImVec2      StartPos            = {0.0f, 0.0f};             // Position at the time the pointer appeared, regardless of AllowTrigger
+    ImGuiID     StartedOn           = 0;                        // When IsNew then store the ID of the widget this pointer has been started on
+    ImVec4      ExtraAxes           = {0.0f, 0.0f, 0.0f, 0.0f}; // Extra axes coming from pointer
+    ImVec4      ExtraAxesPrev       = {0.0f, 0.0f, 0.0f, 0.0f}; // Previous frame's extra axes
+    float       PointerDuration     = 0.0f;                     // Duration this pointer has been present (0.0f when IsNew)
+    ImVec2      DragMaxDistanceAbs  = {0.0f, 0.0f};             // Maximum distance, absolute, on each axis, of how much this pointer has traveled from its starting point
+    float       DragMaxDistanceSqr  = 0.0f;                     // Squared maximum distance of how much this pointer has traveled from its starting point
+
+};
+
 //-----------------------------------------------------------------------------
 // [SECTION] Columns support
 //-----------------------------------------------------------------------------
@@ -1128,43 +1295,14 @@ struct ImGuiContext
     ImGuiStorage            WindowsById;                        // Map window's ImGuiID to ImGuiWindow*
     int                     WindowsActiveCount;                 // Number of unique windows submitted by frame
     ImGuiWindow*            CurrentWindow;                      // Window being drawn into
-    ImGuiWindow*            HoveredWindow;                      // Window the mouse is hovering. Will typically catch mouse inputs.
-    ImGuiWindow*            HoveredRootWindow;                  // == HoveredWindow ? HoveredWindow->RootWindow : NULL, merely a shortcut to avoid null test in some situation.
-    ImGuiWindow*            HoveredWindowUnderMovingWindow;     // Hovered window ignoring MovingWindow. Only set if MovingWindow is set.
-    ImGuiWindow*            MovingWindow;                       // Track the window we clicked on (in order to preserve focus). The actual window that is moved is generally MovingWindow->RootWindow.
-    ImGuiWindow*            WheelingWindow;                     // Track the window we started mouse-wheeling on. Until a timer elapse or mouse has moved, generally keep scrolling the same window even if during the course of scrolling the mouse ends up hovering a child window.
-    ImVec2                  WheelingWindowRefMousePos;
-    float                   WheelingWindowTimer;
 
     // Item/widgets state and tracking information
-    ImGuiID                 HoveredId;                          // Hovered widget
-    ImGuiID                 HoveredIdPreviousFrame;
-    bool                    HoveredIdAllowOverlap;
-    bool                    HoveredIdDisabled;                  // At least one widget passed the rect test, but has been discarded by disabled flag or popup inhibit. May be true even if HoveredId == 0.
-    float                   HoveredIdTimer;                     // Measure contiguous hovering time
-    float                   HoveredIdNotActiveTimer;            // Measure contiguous hovering time where the item has not been active
-    ImGuiID                 ActiveId;                           // Active widget
-    ImGuiID                 ActiveIdIsAlive;                    // Active widget has been seen this frame (we can't use a bool as the ActiveId may change within the frame)
-    float                   ActiveIdTimer;
-    bool                    ActiveIdIsJustActivated;            // Set at the time of activation for one frame
-    bool                    ActiveIdAllowOverlap;               // Active widget allows another widget to steal active id (generally for overlapping widgets, but not always)
-    bool                    ActiveIdNoClearOnFocusLoss;         // Disable losing active id if the active id window gets unfocused.
-    bool                    ActiveIdHasBeenPressedBefore;       // Track whether the active id led to a press (this is to allow changing between PressOnClick and PressOnRelease without pressing twice). Used by range_select branch.
-    bool                    ActiveIdHasBeenEditedBefore;        // Was the value associated to the widget Edited over the course of the Active state.
-    bool                    ActiveIdHasBeenEditedThisFrame;
-    ImU32                   ActiveIdUsingNavDirMask;            // Active widget will want to read those nav move requests (e.g. can activate a button and move away from it)
-    ImU32                   ActiveIdUsingNavInputMask;          // Active widget will want to read those nav inputs.
-    ImU64                   ActiveIdUsingKeyInputMask;          // Active widget will want to read those key inputs. When we grow the ImGuiKey enum we'll need to either to order the enum to make useful keys come first, either redesign this into e.g. a small array.
-    ImVec2                  ActiveIdClickOffset;                // Clicked offset from upper-left corner, if applicable (currently only set by ButtonBehavior)
-    ImGuiWindow*            ActiveIdWindow;
-    ImGuiInputSource        ActiveIdSource;                     // Activating with mouse or nav (gamepad/keyboard)
-    int                     ActiveIdMouseButton;
-    ImGuiID                 ActiveIdPreviousFrame;
-    bool                    ActiveIdPreviousFrameIsAlive;
-    bool                    ActiveIdPreviousFrameHasBeenEditedBefore;
-    ImGuiWindow*            ActiveIdPreviousFrameWindow;
-    ImGuiID                 LastActiveId;                       // Store the last non-zero ActiveId, useful for animation.
-    float                   LastActiveIdTimer;                  // Store the last non-zero ActiveId timer since the beginning of activation, useful for animation.
+    ImGuiActiveState        ActiveState;
+
+    // Storing the states of individual pointers. Position of a pointer state in array is `ImPointerEvent::PointerId % IMGUI_MAX_POINTERID`
+    // We can do this because we assume that the host has a sensical pointer ID assignment scheme which is hopefully not totally random
+    // Mouse is stored at index IMGUI_MAX_POINTERID
+    ImGuiPointerInternalState PointerStates[IMGUI_MAX_POINTERID + 1];
 
     // Next window/item data
     ImGuiNextWindowData     NextWindowData;                     // Storage for SetNextWindow** functions
@@ -1241,25 +1379,6 @@ struct ImGuiContext
     ImDrawList              BackgroundDrawList;                 // First draw list to be rendered.
     ImDrawList              ForegroundDrawList;                 // Last draw list to be rendered. This is where we the render software mouse cursor (if io.MouseDrawCursor is set) and most debug overlays.
     ImGuiMouseCursor        MouseCursor;
-
-    // Drag and Drop
-    bool                    DragDropActive;
-    bool                    DragDropWithinSource;               // Set when within a BeginDragDropXXX/EndDragDropXXX block for a drag source.
-    bool                    DragDropWithinTarget;               // Set when within a BeginDragDropXXX/EndDragDropXXX block for a drag target.
-    ImGuiDragDropFlags      DragDropSourceFlags;
-    int                     DragDropSourceFrameCount;
-    int                     DragDropMouseButton;
-    ImGuiPayload            DragDropPayload;
-    ImRect                  DragDropTargetRect;                 // Store rectangle of current target candidate (we favor small targets when overlapping)
-    ImGuiID                 DragDropTargetId;
-    ImGuiDragDropFlags      DragDropAcceptFlags;
-    float                   DragDropAcceptIdCurrRectSurface;    // Target item surface (we resolve overlapping targets by prioritizing the smaller surface)
-    ImGuiID                 DragDropAcceptIdCurr;               // Target item id (set at the time of accepting the payload)
-    ImGuiID                 DragDropAcceptIdPrev;               // Target item id from previous frame (we need to store this to allow for overlapping drag and drop targets)
-    int                     DragDropAcceptFrameCount;           // Last time a target expressed a desire to accept the source
-    ImGuiID                 DragDropHoldJustPressedId;          // Set when holding a payload just made ButtonBehavior() return a press.
-    ImVector<unsigned char> DragDropPayloadBufHeap;             // We don't expose the ImVector<> directly, ImGuiPayload only holds pointer+size
-    unsigned char           DragDropPayloadBufLocal[16];        // Local buffer for small payloads
 
     // Tab bars
     ImGuiTabBar*                    CurrentTabBar;
@@ -1339,39 +1458,6 @@ struct ImGuiContext
 
         WindowsActiveCount = 0;
         CurrentWindow = NULL;
-        HoveredWindow = NULL;
-        HoveredRootWindow = NULL;
-        HoveredWindowUnderMovingWindow = NULL;
-        MovingWindow = NULL;
-        WheelingWindow = NULL;
-        WheelingWindowTimer = 0.0f;
-
-        HoveredId = HoveredIdPreviousFrame = 0;
-        HoveredIdAllowOverlap = false;
-        HoveredIdDisabled = false;
-        HoveredIdTimer = HoveredIdNotActiveTimer = 0.0f;
-        ActiveId = 0;
-        ActiveIdIsAlive = 0;
-        ActiveIdTimer = 0.0f;
-        ActiveIdIsJustActivated = false;
-        ActiveIdAllowOverlap = false;
-        ActiveIdNoClearOnFocusLoss = false;
-        ActiveIdHasBeenPressedBefore = false;
-        ActiveIdHasBeenEditedBefore = false;
-        ActiveIdHasBeenEditedThisFrame = false;
-        ActiveIdUsingNavDirMask = 0x00;
-        ActiveIdUsingNavInputMask = 0x00;
-        ActiveIdUsingKeyInputMask = 0x00;
-        ActiveIdClickOffset = ImVec2(-1, -1);
-        ActiveIdWindow = NULL;
-        ActiveIdSource = ImGuiInputSource_None;
-        ActiveIdMouseButton = 0;
-        ActiveIdPreviousFrame = 0;
-        ActiveIdPreviousFrameIsAlive = false;
-        ActiveIdPreviousFrameHasBeenEditedBefore = false;
-        ActiveIdPreviousFrameWindow = NULL;
-        LastActiveId = 0;
-        LastActiveIdTimer = 0.0f;
 
         NavWindow = NULL;
         NavId = NavFocusScopeId = NavActivateId = NavActivateDownId = NavActivatePressedId = NavInputId = 0;
@@ -1412,18 +1498,6 @@ struct ImGuiContext
         BackgroundDrawList._OwnerName = "##Background"; // Give it a name for debugging
         ForegroundDrawList._OwnerName = "##Foreground"; // Give it a name for debugging
         MouseCursor = ImGuiMouseCursor_Arrow;
-
-        DragDropActive = DragDropWithinSource = DragDropWithinTarget = false;
-        DragDropSourceFlags = ImGuiDragDropFlags_None;
-        DragDropSourceFrameCount = -1;
-        DragDropMouseButton = -1;
-        DragDropTargetId = 0;
-        DragDropAcceptFlags = ImGuiDragDropFlags_None;
-        DragDropAcceptIdCurrRectSurface = 0.0f;
-        DragDropAcceptIdPrev = DragDropAcceptIdCurr = 0;
-        DragDropAcceptFrameCount = -1;
-        DragDropHoldJustPressedId = 0;
-        memset(DragDropPayloadBufLocal, 0, sizeof(DragDropPayloadBufLocal));
 
         CurrentTabBar = NULL;
 
