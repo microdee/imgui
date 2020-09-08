@@ -106,6 +106,12 @@ Index of this file:
 #pragma GCC diagnostic ignored "-Wclass-memaccess"          // [__GNUC__ >= 8] warning: 'memset/memcpy' clearing/writing an object of type 'xxxx' with no trivial copy-assignment; use assignment or value-initialization instead
 #endif
 
+#ifndef IMGUI_MAX_POINTERID
+#define IMGUI_MAX_POINTERID 10
+#endif
+
+#define IMGUI_POINTER_ARR_SIZE IMGUI_MAX_POINTERID + 1
+
 //-----------------------------------------------------------------------------
 // Forward declarations and basic types
 //-----------------------------------------------------------------------------
@@ -303,7 +309,7 @@ namespace ImGui
     IMGUI_API bool          IsWindowAppearing();
     IMGUI_API bool          IsWindowCollapsed();
     IMGUI_API bool          IsWindowFocused(ImGuiFocusedFlags flags=0); // is current window focused? or its root/child, depending on flags. see flags for options.
-    IMGUI_API bool          IsWindowHovered(ImGuiHoveredFlags flags=0); // is current window hovered (and typically: not blocked by a popup/modal)? see flags for options. NB: If you are trying to check whether your mouse should be dispatched to imgui or to your app, you should use the 'io.WantCaptureMouse' boolean for that! Please read the FAQ!
+    IMGUI_API int           IsWindowHovered(ImGuiHoveredFlags flags=0); // is current window hovered (and typically: not blocked by a popup/modal)? see flags for options. Returns number of pointers hovering the window. NB: If you are trying to check whether your mouse/pointers should be dispatched to imgui or to your app, you should use the 'io.WantCaptureMouse' boolean or WantCapturePointer(ImU32 pointerId) for that! Please read the FAQ!
     IMGUI_API ImDrawList*   GetWindowDrawList();                        // get draw list associated to the current window, to append your own drawing primitives
     IMGUI_API ImVec2        GetWindowPos();                             // get current window position in screen space (useful if you want to do your own drawing via the DrawList API)
     IMGUI_API ImVec2        GetWindowSize();                            // get current window size
@@ -694,17 +700,17 @@ namespace ImGui
     // Item/Widgets Utilities
     // - Most of the functions are referring to the last/previous item we submitted.
     // - See Demo Window under "Widgets->Querying Status" for an interactive visualization of most of those functions.
-    IMGUI_API bool          IsItemHovered(ImGuiHoveredFlags flags = 0);                         // is the last item hovered? (and usable, aka not blocked by a popup, etc.). See ImGuiHoveredFlags for more options.
+    IMGUI_API int           IsItemHovered(ImGuiHoveredFlags flags = 0);                         // is the last item hovered? (and usable, aka not blocked by a popup, etc.). Returns number of pointers hovering the item. See ImGuiHoveredFlags for more options.
     IMGUI_API bool          IsItemActive();                                                     // is the last item active? (e.g. button being held, text field being edited. This will continuously return true while holding mouse button on an item. Items that don't interact will always return false)
     IMGUI_API bool          IsItemFocused();                                                    // is the last item focused for keyboard/gamepad navigation?
-    IMGUI_API bool          IsItemClicked(ImGuiMouseButton mouse_button = 0);                   // is the last item clicked? (e.g. button/node just clicked on) == IsMouseClicked(mouse_button) && IsItemHovered()
+    IMGUI_API int           IsItemClicked(ImGuiMouseButton mouse_button = 0);                   // is the last item clicked? (e.g. button/node just clicked on) == IsMouseClicked(mouse_button) && IsItemHovered(). Returns number of pointers clicking the item
     IMGUI_API bool          IsItemVisible();                                                    // is the last item visible? (items may be out of sight because of clipping/scrolling)
     IMGUI_API bool          IsItemEdited();                                                     // did the last item modify its underlying value this frame? or was pressed? This is generally the same as the "bool" return value of many widgets.
     IMGUI_API bool          IsItemActivated();                                                  // was the last item just made active (item was previously inactive).
     IMGUI_API bool          IsItemDeactivated();                                                // was the last item just made inactive (item was previously active). Useful for Undo/Redo patterns with widgets that requires continuous editing.
     IMGUI_API bool          IsItemDeactivatedAfterEdit();                                       // was the last item just made inactive and made a value change when it was active? (e.g. Slider/Drag moved). Useful for Undo/Redo patterns with widgets that requires continuous editing. Note that you may get false positives (some widgets such as Combo()/ListBox()/Selectable() will return true even when clicking an already selected item).
     IMGUI_API bool          IsItemToggledOpen();                                                // was the last item open state toggled? set by TreeNode().
-    IMGUI_API bool          IsAnyItemHovered();                                                 // is any item hovered?
+    IMGUI_API int           IsAnyItemHovered();                                                 // is any item hovered? Returns number of pointers hovering over an item
     IMGUI_API bool          IsAnyItemActive();                                                  // is any item active?
     IMGUI_API bool          IsAnyItemFocused();                                                 // is any item focused?
     IMGUI_API ImVec2        GetItemRectMin();                                                   // get upper-left bounding rectangle of the last item (screen space)
@@ -746,10 +752,15 @@ namespace ImGui
     IMGUI_API int           GetKeyPressedAmount(int key_index, float repeat_delay, float rate); // uses provided repeat rate/delay. return a count, most often 0 or 1 but might be >1 if RepeatRate is small enough that DeltaTime > RepeatRate
     IMGUI_API void          CaptureKeyboardFromApp(bool want_capture_keyboard_value = true);    // attention: misleading name! manually override io.WantCaptureKeyboard flag next frame (said flag is entirely left for your application to handle). e.g. force capture keyboard when your widget is being hovered. This is equivalent to setting "io.WantCaptureKeyboard = want_capture_keyboard_value"; after the next NewFrame() call.
 
+    // Inputs Utilities: Pointers
+    IMGUI_API bool          WantCapturePointer(ImU32 pointerId);                                // Returns true when Dear ImGui will use the queried pointer inputs, in this case do not dispatch them to your main game/application (either way, always pass on pointer inputs to imgui). (e.g. unclicked/tapped pointer is hovering over an imgui window, widget is active, pointer was clicked/tapped over an imgui window, etc.).
+    // TODO: query pointer states like with mouse
+
     // Inputs Utilities: Mouse
     // - To refer to a mouse button, you may use named enums in your code e.g. ImGuiMouseButton_Left, ImGuiMouseButton_Right.
     // - You can also use regular integer: it is forever guaranteed that 0=Left, 1=Right, 2=Middle.
     // - Dragging operations are only reported after mouse has moved a certain distance away from the initial clicking position (see 'lock_threshold' and 'io.MouseDraggingThreshold')
+    // - These functions only report mouse button state. Use above pointer inputs functions to query the primary pointer state (which also can be the mouse, but it can be the first touch or pen present)
     IMGUI_API bool          IsMouseDown(ImGuiMouseButton button);                               // is mouse button held?
     IMGUI_API bool          IsMouseClicked(ImGuiMouseButton button, bool repeat = false);       // did mouse button clicked? (went from !Down to Down)
     IMGUI_API bool          IsMouseReleased(ImGuiMouseButton button);                           // did mouse button released? (went from Down to !Down)
@@ -1643,51 +1654,6 @@ struct ImPointerEvent
     // WithButtonArray
 };
 
-#ifndef IMGUI_MAX_POINTERID
-#define IMGUI_MAX_POINTERID 20
-#endif
-
-struct ImPointerInternalState
-{
-    // Members (Flags)
-    bool    Valid           = false;    // This internal struct is only valid if this bool is true
-    bool    Visited         = false;    // This pointer state has been modified already on current frame. Reset at each draw
-
-    bool    IsTouch         = false;
-    bool    IsPen           = false;
-
-    bool    IsPrimary       = false;
-    bool    IsNew           = false;    // True only on the first frame this pointer is seen
-    bool    IsDown          = false;    // True while the pointer is in contact with the screen (it's always true for touches)
-    bool    BecameDown      = false;    // Only true for the first frame this pointer became IsDown
-    bool    BecameUp        = false;    // Only true for the first frame this pointer is lifted up
-    bool    IsEnded         = false;    // True on the frame this pointer has ended
-    bool    IsCanceled      = false;    // True on the frame this pointer has abruptly disappeared
-    bool    AllowTrigger    = false;    // True if this pointer can trigger elements or false if it's part of a gesture (like panning)
-    bool    DownOwned       = false;    // Track if pointer was triggered inside a dear imgui window.
-
-    // Members (Pointer)
-    ImU32       Id;                 // Unique ID of the pointer
-    ImU32       FrameCtr;           // A simple frame counter for this pointer
-    double      StartOnTime;        // Absolute time this pointer has started at
-    double      DownOnTime;         // Absolute time this pointer made contact at
-    ImVec2      Pos;                // Current location of this pointer event
-    ImVec2      LastValidPos;       // The last known valid position for this pointer
-    ImVec2      PosPrev;            // Previous pointer position (note that PosDelta is not necessary == Pos-PosPrev, in case either position is invalid)
-    ImVec2      PosDelta;           // Pointer position delta. Note that this is zero if either current or previous position are invalid (-FLT_MAX,-FLT_MAX), so disappearing/reappearing won't have a huge delta.
-    ImVec2      StartPos;           // Position at the time the pointer appeared, regardless of AllowTrigger
-    ImVec2      DownPos;            // Position at the time the pointer actually contacted the digitizer regardless of AllowTrigger
-    ImGuiID     StartedOn = 0;      // When IsNew then store the ID of the widget this pointer has been started on
-    ImGuiID     DownOn = 0;         // If DownOwned is true, then store the ID of the widget this pointer has been started on
-    ImGuiID     HoveringOn = 0;     // This pointer is above this widget currently
-    ImVec4      ExtraAxes;          // Extra axes coming from pointer
-    ImVec4      ExtraAxesPrev;      // Previous frame's extra axes
-    float       DownDuration;       // Duration this pointer has been down
-    float       PointerDuration;    // Duration this pointer has been present (0.0f when IsNew)
-    ImVec2      DragMaxDistanceAbs; // Maximum distance, absolute, on each axis, of how much this pointer has traveled from its starting point
-    float       DragMaxDistanceSqr; // Squared maximum distance of how much this pointer has traveled from its starting point
-};
-
 //-----------------------------------------------------------------------------
 // ImGuiIO
 // Communicate most settings and inputs/outputs to Dear ImGui using this structure.
@@ -1765,6 +1731,7 @@ struct ImGuiIO
     // Input - Fill before calling NewFrame()
     //------------------------------------------------------------------
 
+    bool        NoLegacyMouseInput;             // Set this to true if mouse is added via the new pointers api. It has to be explicitly set to be true for maintaining backwards compatibility with the old behavior.
     ImVec2      MousePos;                       // Mouse position, in pixels. Set to ImVec2(-FLT_MAX, -FLT_MAX) if mouse is unavailable (on another screen, etc.)
     bool        MouseDown[5];                   // Mouse buttons: 0=left, 1=right, 2=middle + extras (ImGuiMouseButton_COUNT == 5). Dear ImGui mostly uses left and right buttons. Others buttons allows us to track if the mouse is being used by your application + available to user as a convenience via IsMouse** API.
     float       MouseWheel;                     // Mouse wheel Vertical: 1 unit scrolls about 5 lines text.
@@ -1829,10 +1796,6 @@ struct ImGuiIO
     float       PenPressure;                    // Touch/Pen pressure (0.0f to 1.0f, should be >0.0f only when MouseDown[0] == true). Helper storage currently unused by Dear ImGui.
     ImWchar16   InputQueueSurrogate;            // For AddInputCharacterUTF16
     ImVector<ImWchar> InputQueueCharacters;     // Queue of _characters_ input (obtained by platform back-end). Fill using AddInputCharacter() helper.
-
-    // Storing the states of individual pointers. Position of a pointer state in array is `ImPointerEvent::PointerId % IMGUI_MAX_POINTERID`
-    // We can do this because we assume that the host has a sensical pointer ID assignment scheme which is hopefully not totally random
-    ImPointerInternalState PointerStates[IMGUI_MAX_POINTERID];
 
     IMGUI_API   ImGuiIO();
 };

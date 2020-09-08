@@ -977,10 +977,6 @@ struct ImGuiPtrOrIndex
     ImGuiPtrOrIndex(int index)  { Ptr = NULL; Index = index; }
 };
 
-#ifndef IMGUI_MAX_POINTERID
-#define IMGUI_MAX_POINTERID 10
-#endif
-
 struct ImGuiHoverState
 {
     ImGuiWindow*    HoveredWindow                   = NULL;     // Window the mouse is hovering. Will typically catch mouse inputs.
